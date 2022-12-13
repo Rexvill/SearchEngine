@@ -21,7 +21,7 @@ public class Page {
     @JoinColumn(name= "site_id")
     Site site;
 
-    @Column(columnDefinition = "varchar(255) NOT NULL")
+    @Column(columnDefinition = "TEXT NOT NULL")
     String path;
 
     @Column(columnDefinition = " INT NOT NULL")
