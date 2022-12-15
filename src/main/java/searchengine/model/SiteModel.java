@@ -11,13 +11,14 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Getter
 @Setter
-public class Site {
+public class SiteModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     int id;
 
-    @Column(columnDefinition = " ENUM('INDEXING', 'INDEXED', 'FAILED') NOT NULL")
+    @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "ENUM('INDEXING', 'INDEXED', 'FAILED')",nullable = false)
     Status status;
 
     @Column(name = "status_time", columnDefinition = "DATETIME NOT NULL")

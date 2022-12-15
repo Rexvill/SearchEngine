@@ -7,7 +7,6 @@ import lombok.Setter;
 import javax.persistence.*;
 
 @Entity(name = "page")
-@Table(indexes = @Index(name = "path_index", columnList = "path", unique = true))
 @NoArgsConstructor
 @Getter
 @Setter
@@ -17,11 +16,11 @@ public class Page {
     @GeneratedValue(strategy = GenerationType.AUTO)
     int id;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne(cascade = CascadeType.MERGE)
     @JoinColumn(name= "site_id")
-    Site site;
+    SiteModel site;
 
-    @Column(columnDefinition = "TEXT NOT NULL")
+    @Column(columnDefinition = "TEXT NOT NULL, UNIQUE KEY pathIndex (path(512))")
     String path;
 
     @Column(columnDefinition = " INT NOT NULL")

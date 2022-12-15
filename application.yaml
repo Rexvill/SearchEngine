@@ -12,14 +12,14 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
   show-sql: true
 
 indexing-settings:
   sites:
-    - url: https://www.lenta.ru
-      name: Лента.ру
-    - url: https://www.skillbox.ru
-      name: Skillbox
-    - url: https://www.playback.ru
-      name: PlayBack.Ru
+    - url: https://ipfran.ru/
+      name: ИПФ РАН
+    - url: https://nikoartgallery.com/
+      name: Галерея искусств Niko
+    - url: https://www.svetlovka.ru/
+      name: Центральная городская молодежная библиотека им. М. А. Светлова

@@ -1,22 +1,36 @@
 package searchengine.crawler;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import searchengine.model.Page;
+import searchengine.model.SiteModel;
+import searchengine.repositories.PageRepository;
+
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.RecursiveAction;
 
+
 public class WebCrawler extends RecursiveAction {
 
-    private final Node node;
+    @Autowired
+    private PageRepository pageRepository;
+    private Node node;
+    private String rootUrl;
 
-    public WebCrawler(Node node) {
-        this.node = node;
+    private SiteModel siteModel;
+
+    public WebCrawler(String url, SiteModel siteModel, PageRepository pageRepository) {
+        this.rootUrl = url;
+        this.siteModel = siteModel;
+        this.pageRepository = pageRepository;
+        node = new Node(rootUrl);
     }
 
     @Override
     protected void compute() {
         try {
-            Thread.sleep(100);
+            Thread.sleep(200);
         } catch (InterruptedException ex) {
             throw new RuntimeException(ex);
         }
@@ -27,9 +41,21 @@ public class WebCrawler extends RecursiveAction {
         ArrayList<Node> children = node.getChildren();
 
         for (Node child : children) {
-            WebCrawler task = new WebCrawler(child);
+            String link = child.getLink();
+            WebCrawler task = new WebCrawler(link, siteModel, pageRepository);
             task.fork();
             taskList.add(task);
+
+            String content = child.getDoc().toString();
+            Page page = new Page();
+            page.setSite(siteModel);
+            page.setPath(link);
+            page.setCode(200);
+            page.setContent(content);
+            pageRepository.save(page);
+
+
+
         }
         for (WebCrawler task : taskList) {
             task.join();
