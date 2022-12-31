@@ -1,87 +1,115 @@
 package searchengine.crawler;
 
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 public class Node {
 
-    private static final CopyOnWriteArrayList<String> childrenLinks = new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArraySet<String> childrenLinks = new CopyOnWriteArraySet<>();
+
     private final String link;
+
+    private final URL url;
+
     private final ArrayList<Node> children = new ArrayList<>();
 
-    private Document doc;
+    Connection.Response response;
 
-    //    private int level;
+    Document doc;
 
-    public Node(String link) {
+    int code;
+
+    public Node(String link) throws MalformedURLException {
+
         this.link = link;
-        doc = getDoc();
+        this.url = new URL(link);
+        try {
+            response = Jsoup.newSession().url(link)
+                    .ignoreContentType(true)
+                    .ignoreHttpErrors(true)
+                    .followRedirects(false)
+                    .userAgent(" Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " + //"VaryFineSearchBot"
+                            "(KHTML, like Gecko) Chrome/106.0.0.0 YaBrowser/22.11.5.715 Yowser/2.5 Safari/537.36")
+                    .referrer("http://www.google.com")
+//                    .timeout(10000)
+                    .execute()
+                    .bufferUp();
+            code = response.statusCode();
+            doc = response.parse();
+        } catch (IOException e) {
+            System.out.println("Getting response exception - " + link + " " + e.getMessage());
+        }
     }
 
-    public static CopyOnWriteArrayList<String> getChildrenLinks() {
+    public static CopyOnWriteArraySet<String> getChildrenLinks() {
+
         return childrenLinks;
     }
 
+    public int getStatusCode() {
+
+        return code;
+    }
+
+    public String getContent() {
+
+        if (doc == null) {
+            return "Sorry, the Document was empty";
+        }
+        return doc.html();
+    }
+
     public String getLink() {
+
         return link;
     }
 
+    public String getPath() {
 
-    private void addChild(Node node) {
-//        node.setLevel(level + 1);
-        children.add(node);
-    }
-
-    //    private void setLevel(int level) {
-//        this.level = level;
-//    }
-    public Document getDoc() {
-        doc = null;
-        try {
-            doc = Jsoup.newSession().url(link)
-                    .ignoreContentType(true)
-                    .userAgent("Mozilla/5.0 (Windows NT 6.1; Win64; x64)"
-                            + " Chrome/100.0.4896.160 YaBrowser/22.5.4.904 Safari/537.36")
-                    .referrer("http://www.google.com")
-                    .get();
-        } catch (Exception ex) {
-            System.out.println(ex.getMessage());
-        }
-        return doc;
+        System.out.println(url.getPath());
+        return url.getFile();
     }
 
     public ArrayList<Node> getChildren() {
+
         return children;
     }
 
-    public void setChildren() {
+    public void setChildren() throws IOException {
 
 
-        Elements elements = new Elements();
+        Elements elements = doc.select("a");
+        String domain = url.getProtocol() + "://" + url.getHost();
+        System.out.println("Host " + domain);
+        System.out.println("Doc.baseUri" + doc.baseUri());
 
-            /*TODO пересмотреть определение и необходимость  domain
-                (некоторые сайты  падают с
-                java.lang.StringIndexOutOfBoundsException: begin 8, end 0, length 23)
-             */
-        String domain = "https://" + link.substring(link.indexOf("://") + 3, link.indexOf("/", 9) + 1);
-
-        if (doc != null) {
-            elements = doc.select("a");
-        }
         elements.forEach(element -> {
-            String url = element.attr("abs:href");/**/
-            if (url.startsWith(domain)
-                    && !url.contains("#")
-                    && !url.equals(link)
-                    && !childrenLinks.contains(url)) {
-                System.out.println(Thread.currentThread().getName()+" "+url);
-                addChild(new Node(url));
-                childrenLinks.add(url);
+            String link = element.attr("abs:href");
+            if (link.startsWith(domain)
+                    && !link.contains("#")
+//                    && !url.equals(link)
+                    && !childrenLinks.contains(link)) {
+                try {
+                    addChild(new Node(link));
+                } catch (MalformedURLException e) {
+                    throw new RuntimeException(e);
+                }
+                System.out.println(Thread.currentThread().getName() + " " + link);
+                childrenLinks.add(link);
             }
         });
+    }
+
+    private void addChild(Node node) {
+
+        children.add(node);
     }
 }

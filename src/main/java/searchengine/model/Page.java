@@ -20,7 +20,7 @@ public class Page {
     @JoinColumn(name= "site_id")
     SiteModel site;
 
-    @Column(columnDefinition = "TEXT NOT NULL, UNIQUE KEY pathIndex (path(512))")
+    @Column(columnDefinition = "TEXT NOT NULL, UNIQUE KEY pathIndex (path(512),site_id)")
     String path;
 
     @Column(columnDefinition = " INT NOT NULL")

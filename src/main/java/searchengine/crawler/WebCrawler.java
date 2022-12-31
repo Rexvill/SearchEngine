@@ -3,9 +3,15 @@ package searchengine.crawler;
 import org.springframework.beans.factory.annotation.Autowired;
 import searchengine.model.Page;
 import searchengine.model.SiteModel;
+import searchengine.model.Status;
 import searchengine.repositories.PageRepository;
+import searchengine.repositories.SiteRepository;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.RecursiveAction;
@@ -14,51 +20,82 @@ import java.util.concurrent.RecursiveAction;
 public class WebCrawler extends RecursiveAction {
 
     @Autowired
-    private PageRepository pageRepository;
-    private Node node;
-    private String rootUrl;
+    private final PageRepository pageRepository;
 
-    private SiteModel siteModel;
+    @Autowired
+    private final SiteRepository siteRepository;
 
-    public WebCrawler(String url, SiteModel siteModel, PageRepository pageRepository) {
-        this.rootUrl = url;
+    private final Node node;
+
+//    private String rootUrl;
+
+    private final SiteModel siteModel;
+
+    public WebCrawler(String url, SiteModel siteModel, PageRepository pageRepository, SiteRepository siteRepository) throws MalformedURLException {
+
+        node = new Node(url);
         this.siteModel = siteModel;
         this.pageRepository = pageRepository;
-        node = new Node(rootUrl);
+        this.siteRepository = siteRepository;
     }
 
     @Override
     protected void compute() {
+
         try {
             Thread.sleep(200);
         } catch (InterruptedException ex) {
-            throw new RuntimeException(ex);
+            updateSiteWhenError(ex);
         }
 
-        node.setChildren();
+        try {
+            node.setChildren();
+            List<WebCrawler> taskList = new LinkedList<>();
+            ArrayList<Node> children = node.getChildren();
 
-        List<WebCrawler> taskList = new LinkedList<>();
-        ArrayList<Node> children = node.getChildren();
+            for (Node child : children) {
+                String link = child.getLink();
+                WebCrawler task = new WebCrawler(link, siteModel, pageRepository, siteRepository);
+                task.fork();
+                taskList.add(task);
 
-        for (Node child : children) {
-            String link = child.getLink();
-            WebCrawler task = new WebCrawler(link, siteModel, pageRepository);
-            task.fork();
-            taskList.add(task);
-
-            String content = child.getDoc().toString();
-            Page page = new Page();
-            page.setSite(siteModel);
-            page.setPath(link);
-            page.setCode(200);
-            page.setContent(content);
-            pageRepository.save(page);
-
-
-
+                savePage(child);
+                updateSiteStatusTime();
+            }
+            for (WebCrawler task : taskList) {
+                task.join();
+            }
+        } catch (IOException ex) {
+            updateSiteWhenError(ex);
         }
-        for (WebCrawler task : taskList) {
-            task.join();
-        }
+    }
+
+    private void savePage(Node child) throws IOException {
+
+        String content = child.getContent();
+        String path = child.getPath();
+        int code = child.getStatusCode();
+        Page page = new Page();
+        page.setSite(siteModel);
+        page.setPath(path);
+        page.setCode(code);
+        page.setContent(content);
+        System.out.println(path);
+        pageRepository.saveAndFlush(page);
+
+
+    }
+
+    private void updateSiteStatusTime() {
+
+        siteModel.setStatusTime(Date.from(Instant.now()));
+        siteRepository.saveAndFlush(siteModel); //siteRepository.findById((long) page.getSite().getId()).get()
+    }
+
+    public void updateSiteWhenError(Exception ex) {
+
+        siteModel.setStatus(Status.FAILED);
+        siteModel.setLastError(ex.getMessage());
+        siteRepository.saveAndFlush(siteModel);
     }
 }

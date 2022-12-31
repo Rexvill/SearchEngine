@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.time.LocalDateTime;
+import java.util.Date;
 
 @Entity(name = "site")
 @NoArgsConstructor
@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 public class SiteModel {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY )
     int id;
 
     @Enumerated(EnumType.STRING)
@@ -22,15 +22,15 @@ public class SiteModel {
     Status status;
 
     @Column(name = "status_time", columnDefinition = "DATETIME NOT NULL")
-    LocalDateTime statusTime;
+    Date statusTime;
 
     @Column(name = "last_error", columnDefinition = "TEXT")
-    String lastError;
+    String lastError = "";
 
-    @Column(columnDefinition = "VARCHAR(255) NOT NULL")
+    @Column(columnDefinition = "VARCHAR(255) NOT NULL",updatable = false)
     String url;
 
-    @Column(columnDefinition = "VARCHAR(255) NOT NULL")
+    @Column(columnDefinition = "VARCHAR(255) NOT NULL",updatable = false)
     String name;
 
 }

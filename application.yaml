@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 80 #80
 
 spring:
   datasource:
@@ -13,13 +13,31 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
     hibernate:
       ddl-auto: create
-  show-sql: true
+    show-sql: true
 
 indexing-settings:
   sites:
-    - url: https://ipfran.ru/
-      name: ИПФ РАН
-    - url: https://nikoartgallery.com/
-      name: Галерея искусств Niko
-    - url: https://www.svetlovka.ru/
-      name: Центральная городская молодежная библиотека им. М. А. Светлова
+#   - url: https://skillbox.ru
+#     name: СкиллБокс
+#   - url: https://lenta.ru/
+#     name: Лента.РУ
+   - url: http://www.playback.ru/
+     name: PlayBack.Ru
+   - url: https://nikoartgallery.com/
+     name: Галерея искусств Niko
+#   - url: https://www.svetlovka.ru/
+#     name: Центральная городская молодежная библиотека им. М. А. Светлова
+#   - url: https://ipfran.ru/
+#     name: ИПФ РАН
+#   - url: https://volochek.life/
+#     name: Волочек
+#   - url: http://radiomv.ru/
+#     name: Радио Милицейская волна
+#   - url: https://dimonvideo.ru/
+#     name: ДимонВидео
+   - url: https://et-cetera.ru/mobile/
+     name: етсетера
+#   - url: https://www.lutherancathedral.ru/
+#     name: лютеран собор
+#   - url: https://dombulgakova.ru/
+#     name: Дом Булгакова
