@@ -3,9 +3,13 @@ package searchengine.model;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Entity(name = "site")
 @NoArgsConstructor
@@ -14,11 +18,12 @@ import java.util.Date;
 public class SiteModel {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY )
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
     int id;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('INDEXING', 'INDEXED', 'FAILED')",nullable = false)
+    @Column(columnDefinition = "ENUM('INDEXING', 'INDEXED', 'FAILED')", nullable = false)
     Status status;
 
     @Column(name = "status_time", columnDefinition = "DATETIME NOT NULL")
@@ -27,10 +32,14 @@ public class SiteModel {
     @Column(name = "last_error", columnDefinition = "TEXT")
     String lastError = "";
 
-    @Column(columnDefinition = "VARCHAR(255) NOT NULL",updatable = false)
+    @Column(columnDefinition = "VARCHAR(255) NOT NULL", updatable = false)
     String url;
 
-    @Column(columnDefinition = "VARCHAR(255) NOT NULL",updatable = false)
+    @Column(columnDefinition = "VARCHAR(255) NOT NULL", updatable = false)
     String name;
 
+    @Transient
+    @OneToMany(cascade = CascadeType.ALL)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    List<Page> pages = new ArrayList<>();
 }

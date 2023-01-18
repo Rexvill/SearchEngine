@@ -16,7 +16,7 @@ public class Page {
     @GeneratedValue(strategy = GenerationType.AUTO)
     int id;
 
-    @ManyToOne(cascade = CascadeType.MERGE)
+    @ManyToOne()
     @JoinColumn(name= "site_id")
     SiteModel site;
 
