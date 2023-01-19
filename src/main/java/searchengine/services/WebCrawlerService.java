@@ -6,6 +6,7 @@ import searchengine.dto.crawler.IndexPageResponse;
 import searchengine.model.SiteModel;
 
 import java.io.IOException;
+import java.util.concurrent.ForkJoinPool;
 
 public interface WebCrawlerService {
 
@@ -26,4 +27,6 @@ public interface WebCrawlerService {
     boolean savePage(Node child, SiteModel siteModel) throws IOException;
 
     void updateSiteStatusTime(SiteModel siteModel);
+
+    void checkRunning(ForkJoinPool pool) throws InterruptedException;
 }

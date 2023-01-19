@@ -14,10 +14,12 @@ public interface PageRepository extends JpaRepository<Page, Integer> {
 
 
     boolean existsBySite_IdAndPathAllIgnoreCase(int id, String path);
+
     @Modifying
     @Transactional
-    @Query(value = "truncate page", nativeQuery = true)
-    void clearTable();
+    @Query(value = "TRUNCATE page", nativeQuery = true)
+    void truncateTable();
+
 
 
 }

@@ -1,5 +1,6 @@
 package searchengine.crawler;
 
+import lombok.SneakyThrows;
 import searchengine.model.SiteModel;
 import searchengine.services.WebCrawlerService;
 
@@ -25,37 +26,39 @@ public class WebCrawler extends RecursiveAction {
         this.siteModel = siteModel;
     }
 
+    @SneakyThrows
     @Override
     protected void compute() {
-
         try {
             Thread.sleep(200);
         } catch (InterruptedException ex) {
-            webCrawlerService.updateSiteWhenError(ex.getMessage(), siteModel);
-            System.out.println(ex.getMessage());
-            ex.printStackTrace();
+            throw new RuntimeException("Поток " + Thread.currentThread().getName() + " был неожиданно прерван во время " +
+                    "ожидания");
+//            webCrawlerService.updateSiteWhenError(ex.getMessage(), siteModel);
         }
 
         try {
+            webCrawlerService.checkRunning(getPool());
             node.setChildren();
-            List<WebCrawler> taskList = new LinkedList<>();
-
-
-            for (Node child : node.getChildren()) {
-                URL link = child.getLink();
-                if (webCrawlerService.savePage(child, siteModel)) {
-                    WebCrawler task = new WebCrawler(link, siteModel, webCrawlerService);
-                    task.fork();
-                    taskList.add(task);
-
-                    webCrawlerService.updateSiteStatusTime(siteModel);
-                }
+        } catch (IOException e) {
+            throw new RuntimeException(Thread.currentThread().getName() + "Ошибка I/O во время установки дочерних " +
+                    "ссылок страницы " + node.getLink().toString());
+        }
+        List<WebCrawler> taskList = new LinkedList<>();
+        for (Node child : node.getChildren()) {
+            URL link = child.getLink();
+            webCrawlerService.checkRunning(getPool());
+            if (webCrawlerService.savePage(child, siteModel)) {
+                webCrawlerService.checkRunning(getPool());
+                WebCrawler task = new WebCrawler(link, siteModel, webCrawlerService);
+                task.fork();
+                webCrawlerService.checkRunning(getPool());
+                taskList.add(task);
+                webCrawlerService.updateSiteStatusTime(siteModel);
             }
-            for (WebCrawler task : taskList) {
-                task.join();
-            }
-        } catch (IOException ex) {
-            webCrawlerService.updateSiteWhenError(ex.getMessage(), siteModel);
+        }
+        for (WebCrawler task : taskList) {
+            task.join();
         }
     }
 }
