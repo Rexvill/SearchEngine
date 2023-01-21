@@ -38,7 +38,7 @@ public class WebCrawler extends RecursiveAction {
         }
 
         try {
-            webCrawlerService.checkRunning(getPool());
+            webCrawlerService.checkRunningAndStopCrawling(getPool());
             node.setChildren();
         } catch (IOException e) {
             throw new RuntimeException(Thread.currentThread().getName() + "Ошибка I/O во время установки дочерних " +
@@ -47,12 +47,12 @@ public class WebCrawler extends RecursiveAction {
         List<WebCrawler> taskList = new LinkedList<>();
         for (Node child : node.getChildren()) {
             URL link = child.getLink();
-            webCrawlerService.checkRunning(getPool());
+            webCrawlerService.checkRunningAndStopCrawling(getPool());
             if (webCrawlerService.savePage(child, siteModel)) {
-                webCrawlerService.checkRunning(getPool());
+                webCrawlerService.checkRunningAndStopCrawling(getPool());
                 WebCrawler task = new WebCrawler(link, siteModel, webCrawlerService);
                 task.fork();
-                webCrawlerService.checkRunning(getPool());
+                webCrawlerService.checkRunningAndStopCrawling(getPool());
                 taskList.add(task);
                 webCrawlerService.updateSiteStatusTime(siteModel);
             }

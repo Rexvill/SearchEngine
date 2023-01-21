@@ -1,7 +1,9 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.crawler.Node;
@@ -39,6 +41,11 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     private volatile boolean crawlingUp = false;
 
     @Override
+    public boolean isCrawlingUp() {
+        return crawlingUp;
+    }
+
+    @Override
     public CrawlerResponse startSitesCrawling() {
         clearTables();
         executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
@@ -73,11 +80,12 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         if (crawlingUp) {
             /*TODO Метод останавливает текущий процесс индексации (переиндексации). Если в настоящий момент индексация
                 или переиндексация не происходит, метод возвращает соответствующее сообщение об ошибке. */
-            crawlingUp = false;
+
             for (Site site : sites.getSites()) {
                 updateSiteWhenError("Операция прервана пользователем", getSiteModel(site.getUrl()));
             }
-
+            crawlingUp = false;
+            executor.shutdownNow();
             response.setResult(true);
         } else {
             response.setResult(false);
@@ -87,7 +95,6 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     private SiteModel getSiteModel(String url) {
-
         return siteRepository.findByUrl(url);
     }
 
@@ -103,6 +110,67 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             indexPageResponse.setError(2);
         }
         return indexPageResponse;
+    }
+
+    @Override
+    @Modifying
+    @Transactional
+    public void clearTables() {
+        /*TODO https://losst.pro/kak-ochistit-tablitsu-v-mysql */
+        siteRepository.truncateTableWithFK();
+        pageRepository.resetSequenceTable();
+        pageRepository.truncateTable();
+    }
+
+    private void siteCrawling(Site site) throws ExecutionException, InterruptedException, MalformedURLException {
+        System.out.println(Thread.currentThread().getName() + " started");
+        Future future;
+        ForkJoinPool pool = new ForkJoinPool(8);
+
+        URL rootUrl = new URL(site.getUrl());
+        SiteModel siteModel = getSiteModelAndSave(site);
+
+        WebCrawler crawler = null;
+        try {
+            crawler = new WebCrawler(rootUrl, siteModel, this);
+        } catch (MalformedURLException ex) {
+            updateSiteWhenError(ex.getMessage(), siteModel);
+            System.out.println(ex.getMessage());
+            ex.printStackTrace();
+        }
+        future = pool.submit(crawler);
+
+        try {
+            future.get();
+        } catch (InterruptedException ex/* ExecutionException ex*/) {
+            updateSiteWhenError(ex.getMessage(), siteModel);
+            stop(pool);
+            System.out.println(ex.getMessage());
+            ex.printStackTrace();
+        }
+        if (future.isDone()) {
+            if (future.isCancelled()) {
+                siteModel.setStatus(Status.FAILED);
+                siteModel.setLastError("Обход сайта был завершен некорректно");
+            } else /**//*if (siteModel.getStatus() != Status.FAILED)*/ {
+                siteModel.setStatus(Status.INDEXED);
+            }
+            siteRepository.saveAndFlush(siteModel);
+            stop(pool);
+        }
+
+    }
+
+    private SiteModel getSiteModelAndSave(Site site) {
+
+        SiteModel siteModel = new SiteModel();
+        siteModel.setUrl(site.getUrl());
+        siteModel.setName(site.getName());
+        siteModel.setStatus(Status.INDEXING);
+        siteModel.setLastError("");/*TODO какие писать ошибки?*/
+        siteModel.setStatusTime(Date.from(Instant.now()));
+        siteRepository.saveAndFlush(siteModel);
+        return siteModel;
     }
 
     @Override
@@ -129,7 +197,6 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
             pageRepository.saveAndFlush(page);
             isSaved = true;
         }
-
         return isSaved;
     }
 
@@ -140,71 +207,26 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     @Override
-    public void checkRunning(ForkJoinPool pool) throws InterruptedException {
+    public void checkRunningAndStopCrawling(ForkJoinPool pool) throws InterruptedException {
         if (!crawlingUp) {
+//            pool.shutdownNow();
+//            pool.awaitTermination(10, TimeUnit.SECONDS);
+            stop(pool);
+        }
+    }
+
+    public void stop(ForkJoinPool pool) {
+        pool.shutdown();
+        try {
+            if (pool.awaitTermination(1000, TimeUnit.MILLISECONDS)) {
+                return;
+            }
             pool.shutdownNow();
             pool.awaitTermination(1000, TimeUnit.MILLISECONDS);
-
+        } catch (InterruptedException ignore) {
+            Thread.currentThread().interrupt();
         }
+        crawlingUp = false;
     }
-
-    private void clearTables() {
-        /*TODO https://losst.pro/kak-ochistit-tablitsu-v-mysql */
-        siteRepository.truncateTableWithFK();
-        pageRepository.truncateTable();
-
-
-    }
-
-    private void siteCrawling(Site site) throws ExecutionException, InterruptedException, MalformedURLException {
-        System.out.println(Thread.currentThread().getName() + " started");
-        Future future;
-        ForkJoinPool pool = new ForkJoinPool(8);
-
-        URL rootUrl = new URL(site.getUrl());
-        SiteModel siteModel = getSiteModelAndSave(site);
-
-        WebCrawler crawler = null;
-        try {
-            crawler = new WebCrawler(rootUrl, siteModel, this);
-        } catch (MalformedURLException ex) {
-            System.out.println(ex.getMessage());
-            ex.printStackTrace();
-        }
-        future = pool.submit(crawler);
-
-        try {
-            future.get();
-        } catch (InterruptedException ex/* ExecutionException ex*/) {
-//            updateSiteWhenError(ex.getMessage(), siteModel);
-            pool.shutdownNow();
-            System.out.println(ex.getMessage());
-            ex.printStackTrace();
-        }
-        if (future.isDone()) {
-            if (future.isCancelled()) {
-                siteModel.setStatus(Status.FAILED);
-                siteModel.setLastError("Обход сайта был завершен некорректно");
-                siteRepository.saveAndFlush(siteModel);
-            } else if (siteModel.getStatus() != Status.FAILED) {
-                siteModel.setStatus(Status.INDEXED);
-                siteRepository.saveAndFlush(siteModel);
-            }
-        }
-
-    }
-
-    private SiteModel getSiteModelAndSave(Site site) {
-
-        SiteModel siteModel = new SiteModel();
-        siteModel.setUrl(site.getUrl());
-        siteModel.setName(site.getName());
-        siteModel.setStatus(Status.INDEXING);
-        siteModel.setLastError("");/*TODO какие писать ошибки?*/
-        siteModel.setStatusTime(Date.from(Instant.now()));
-        siteRepository.saveAndFlush(siteModel);
-        return siteModel;
-    }
-
 
 }

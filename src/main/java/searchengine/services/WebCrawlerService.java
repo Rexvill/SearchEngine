@@ -10,6 +10,8 @@ import java.util.concurrent.ForkJoinPool;
 
 public interface WebCrawlerService {
 
+    boolean isCrawlingUp();
+
     CrawlerResponse startSitesCrawling() throws InterruptedException;
 
     CrawlerResponse stopSitesCrawling();
@@ -22,11 +24,14 @@ public interface WebCrawlerService {
 
 //    void updateSiteWhenError(Exception ex, SiteModel siteModel);
 
-   void updateSiteWhenError(String message, SiteModel siteModel);
+
+    void clearTables();
+
+    void updateSiteWhenError(String message, SiteModel siteModel);
 
     boolean savePage(Node child, SiteModel siteModel) throws IOException;
 
     void updateSiteStatusTime(SiteModel siteModel);
 
-    void checkRunning(ForkJoinPool pool) throws InterruptedException;
+    void checkRunningAndStopCrawling(ForkJoinPool pool) throws InterruptedException;
 }

@@ -85,14 +85,14 @@ public class Node {
             URL link = null;
             try {
                 for (Element element : elements) {
-                    if (element.attr("abs:href").contains(domain)) {
+                    if (element.attr("abs:href").startsWith(domain)) {
                         link = new URL(element.attr("abs:href")); //.toURI().toURL()
                     }
-                    if (link.toExternalForm().startsWith(domain)
-                            && !childrenLinks.contains(link.hashCode())
+                    if (link != null
+                            &&!childrenLinks.contains(link.hashCode())
                             && !link.sameFile(url)
                             && !link.toExternalForm().contains("#")
-                            && !children.contains(link)) {
+                            && !children.contains(link)){
                         childrenLinks.add(link.hashCode());
                         addChild(new Node(link));
                         System.out.println(Thread.currentThread().getName() + " " + link);

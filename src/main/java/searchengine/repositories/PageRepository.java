@@ -20,6 +20,9 @@ public interface PageRepository extends JpaRepository<Page, Integer> {
     @Query(value = "TRUNCATE page", nativeQuery = true)
     void truncateTable();
 
-
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE hibernate_sequence SET next_val = 1", nativeQuery = true)
+    void resetSequenceTable();
 
 }
