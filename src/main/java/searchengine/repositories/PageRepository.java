@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.Page;
 
@@ -14,6 +15,12 @@ public interface PageRepository extends JpaRepository<Page, Integer> {
 
 
     boolean existsBySite_IdAndPathAllIgnoreCase(int id, String path);
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    default void truncateTableAndResetSequenceTable(){
+        truncateTable();
+        resetSequenceTable();
+    }
 
     @Modifying
     @Transactional

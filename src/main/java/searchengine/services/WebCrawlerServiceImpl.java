@@ -1,30 +1,35 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
+import org.jsoup.Connection;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
-import searchengine.crawler.Node;
-import searchengine.crawler.WebCrawler;
+import searchengine.crawler.Node2;
+import searchengine.crawler.WebCrawler2;
 import searchengine.dto.crawler.CrawlerResponse;
-import searchengine.dto.crawler.IndexPageResponse;
 import searchengine.model.Page;
 import searchengine.model.SiteModel;
 import searchengine.model.Status;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Objects;
 import java.util.concurrent.*;
 
 @Service
 @RequiredArgsConstructor
 public class WebCrawlerServiceImpl implements WebCrawlerService {
+
+    private static volatile boolean crawlingUp = false;
 
     private final SiteRepository siteRepository;
 
@@ -36,10 +41,6 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
 
     private CrawlerResponse response;
 
-    private IndexPageResponse indexPageResponse;
-
-    private volatile boolean crawlingUp = false;
-
     @Override
     public boolean isCrawlingUp() {
         return crawlingUp;
@@ -50,13 +51,14 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         clearTables();
         executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
         response = new CrawlerResponse();
-
         if (!crawlingUp) {
             crawlingUp = true;
             for (Site site : sites.getSites()) {
                 executor.submit(() -> {
                     try {
-                        siteCrawling(site);
+                        SiteModel siteModel = new SiteModel();
+                        saveSiteModel(site, siteModel);
+                        siteCrawling(site, siteModel);
                     } catch (ExecutionException | InterruptedException ex) {
                         System.out.println(ex.getMessage());
                         ex.printStackTrace();
@@ -75,17 +77,10 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
 
     @Override
     public CrawlerResponse stopSitesCrawling() {
-
         response = new CrawlerResponse();
         if (crawlingUp) {
-            /*TODO Метод останавливает текущий процесс индексации (переиндексации). Если в настоящий момент индексация
-                или переиндексация не происходит, метод возвращает соответствующее сообщение об ошибке. */
-
-            for (Site site : sites.getSites()) {
-                updateSiteWhenError("Операция прервана пользователем", getSiteModel(site.getUrl()));
-            }
-            crawlingUp = false;
             executor.shutdownNow();
+            crawlingUp = false;
             response.setResult(true);
         } else {
             response.setResult(false);
@@ -94,86 +89,71 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         return response;
     }
 
-    private SiteModel getSiteModel(String url) {
-        return siteRepository.findByUrl(url);
+    @Override
+    @Modifying
+    @Transactional
+    public void clearTables() {
+        siteRepository.truncateTableWithFK();
+        pageRepository.truncateTableAndResetSequenceTable();
+    }
+
+
+    private void saveSiteModel(Site site, SiteModel siteModel) {
+        siteModel.setUrl(site.getUrl());
+        siteModel.setName(site.getName());
+        siteModel.setStatus(Status.INDEXING);
+        siteModel.setLastError("");
+        siteModel.setStatusTime(Date.from(Instant.now()));
+        siteRepository.saveAndFlush(siteModel);
+    }
+
+    private void siteCrawling(Site site, SiteModel siteModel) throws ExecutionException, InterruptedException, MalformedURLException {
+        ForkJoinPool pool = new ForkJoinPool(4);
+        URL rootUrl = new URL(site.getUrl());
+        WebCrawler2 crawler = new WebCrawler2(rootUrl, siteModel, this);
+        Future<Void> future = pool.submit(crawler);
+        while (!crawlingUp) {
+            stop(pool);
+        }
+        future.get();
+        if (future.isDone()) {
+            if (future.isCancelled()) {
+                System.out.println(Thread.currentThread().getName() + " Обход сайта не был завершен корректно");
+                siteModel.setStatus(Status.FAILED);
+                siteModel.setLastError("Обход сайта не был завершен корректно");
+                siteRepository.saveAndFlush(siteModel);
+            } else if (siteModel.getStatus() != Status.FAILED) {
+                siteModel.setStatus(Status.INDEXED);
+                siteRepository.saveAndFlush(siteModel);
+            }
+            stop(pool);
+        }
+    }
+
+    private void stop(ForkJoinPool pool) {
+        pool.shutdown();
+        try {
+            if (pool.awaitTermination(1000, TimeUnit.MILLISECONDS)) {
+                return;
+            }
+            pool.shutdownNow();
+        } catch (InterruptedException ignore) {
+            Thread.currentThread().interrupt();
+        }
+        for (Site site : sites.getSites()) {
+            SiteModel siteModel = getSiteModel(site.getUrl());
+            updateSiteWhenError("Операция прервана пользователем", siteModel);
+        }
     }
 
     @Override
-    public IndexPageResponse indexPage(String url) {
-        indexPageResponse = new IndexPageResponse();
-        if (0 == 0) {
-            /*TODO Метод добавляет в индекс или обновляет отдельную страницу, адрес которой передан в параметре. Если
-                адрес страницы передан неверно, метод должен вернуть соответствующую ошибку. */
-            indexPageResponse.setResult(true);
-        } else {
-            indexPageResponse.setResult(false);
-            indexPageResponse.setError(2);
-        }
-        return indexPageResponse;
+    public SiteModel getSiteModel(String url) {
+        return siteRepository.findByUrl(url);
     }
 
     @Override
     @Modifying
     @Transactional
-    public void clearTables() {
-        /*TODO https://losst.pro/kak-ochistit-tablitsu-v-mysql */
-        siteRepository.truncateTableWithFK();
-        pageRepository.resetSequenceTable();
-        pageRepository.truncateTable();
-    }
-
-    private void siteCrawling(Site site) throws ExecutionException, InterruptedException, MalformedURLException {
-        System.out.println(Thread.currentThread().getName() + " started");
-        Future future;
-        ForkJoinPool pool = new ForkJoinPool(8);
-
-        URL rootUrl = new URL(site.getUrl());
-        SiteModel siteModel = getSiteModelAndSave(site);
-
-        WebCrawler crawler = null;
-        try {
-            crawler = new WebCrawler(rootUrl, siteModel, this);
-        } catch (MalformedURLException ex) {
-            updateSiteWhenError(ex.getMessage(), siteModel);
-            System.out.println(ex.getMessage());
-            ex.printStackTrace();
-        }
-        future = pool.submit(crawler);
-
-        try {
-            future.get();
-        } catch (InterruptedException ex/* ExecutionException ex*/) {
-            updateSiteWhenError(ex.getMessage(), siteModel);
-            stop(pool);
-            System.out.println(ex.getMessage());
-            ex.printStackTrace();
-        }
-        if (future.isDone()) {
-            if (future.isCancelled()) {
-                siteModel.setStatus(Status.FAILED);
-                siteModel.setLastError("Обход сайта был завершен некорректно");
-            } else /**//*if (siteModel.getStatus() != Status.FAILED)*/ {
-                siteModel.setStatus(Status.INDEXED);
-            }
-            siteRepository.saveAndFlush(siteModel);
-            stop(pool);
-        }
-
-    }
-
-    private SiteModel getSiteModelAndSave(Site site) {
-
-        SiteModel siteModel = new SiteModel();
-        siteModel.setUrl(site.getUrl());
-        siteModel.setName(site.getName());
-        siteModel.setStatus(Status.INDEXING);
-        siteModel.setLastError("");/*TODO какие писать ошибки?*/
-        siteModel.setStatusTime(Date.from(Instant.now()));
-        siteRepository.saveAndFlush(siteModel);
-        return siteModel;
-    }
-
-    @Override
     public void updateSiteWhenError(String message, SiteModel siteModel) {
         siteModel.setStatus(Status.FAILED);
         siteModel.setStatusTime(Date.from(Instant.now()));
@@ -182,51 +162,51 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     @Override
-    public boolean savePage(Node child, SiteModel siteModel) {
-        boolean isSaved = false;
-        String content = child.getContent();
+    @Modifying
+    @Transactional
+    public boolean checkIfNotExistAndSavePage(URL link, SiteModel siteModel) throws IOException {
+        boolean exist = true;
+        Node2 child = new Node2(link);
         String path = child.getPath();
-        int code = child.getStatusCode();
-        if (!pageRepository.existsBySite_IdAndPathAllIgnoreCase(siteModel.getId(), path)) {
-            Page page = new Page();
-            page.setSite(siteModel);
-            page.setPath(path);
-            page.setCode(code);
-            page.setContent(content);
-            System.out.println(path);
-            pageRepository.saveAndFlush(page);
-            isSaved = true;
+
+        Connection.Response response = child.getResponse();
+        int code = response.statusCode();
+        String content;
+        if (code == 200 && Objects.requireNonNull(response.contentType()).startsWith("text/html")) {
+            content = response.parse().html();
+        } else {
+            content = "";
         }
-        return isSaved;
+        Page page = new Page(siteModel, path, code, content);
+        synchronized (this) {
+            if (!urlExistInDB(siteModel.getId(), path)) {
+                pageRepository.saveAndFlush(page);
+                exist = false;
+            }
+        }
+        return exist;
     }
 
     @Override
+    @Modifying
+    @Transactional
     public void updateSiteStatusTime(SiteModel siteModel) {
         siteModel.setStatusTime(Date.from(Instant.now()));
-        siteRepository.saveAndFlush(siteModel); //siteRepository.findById((long) page.getSite().getId()).get()
+        siteRepository.saveAndFlush(siteModel);
     }
 
     @Override
-    public void checkRunningAndStopCrawling(ForkJoinPool pool) throws InterruptedException {
+    public void checkRunningAndStopCrawling(ForkJoinPool pool) {
         if (!crawlingUp) {
-//            pool.shutdownNow();
-//            pool.awaitTermination(10, TimeUnit.SECONDS);
             stop(pool);
         }
     }
 
-    public void stop(ForkJoinPool pool) {
-        pool.shutdown();
-        try {
-            if (pool.awaitTermination(1000, TimeUnit.MILLISECONDS)) {
-                return;
-            }
-            pool.shutdownNow();
-            pool.awaitTermination(1000, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException ignore) {
-            Thread.currentThread().interrupt();
-        }
-        crawlingUp = false;
+    @Override
+    @Transactional(propagation = Propagation.REQUIRED)
+    public boolean urlExistInDB(int siteId, String path) {
+        return pageRepository.existsBySite_IdAndPathAllIgnoreCase(siteId, path);
     }
+
 
 }

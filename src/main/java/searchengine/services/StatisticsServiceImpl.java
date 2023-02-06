@@ -8,6 +8,7 @@ import searchengine.dto.statistics.DetailedStatisticsItem;
 import searchengine.dto.statistics.StatisticsData;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.dto.statistics.TotalStatistics;
+import searchengine.model.SiteModel;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 
@@ -20,6 +21,8 @@ import java.util.Random;
 public class StatisticsServiceImpl implements StatisticsService {
 
     private final Random random = new Random();
+
+    private final WebCrawlerService webCrawlerService;
 
     private final SitesList sites;
 
@@ -39,29 +42,23 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         TotalStatistics total = new TotalStatistics();
         total.setSites(sites.getSites().size());
-        total.setIndexing(true);
+        total.setIndexing(webCrawlerService.isCrawlingUp());
 
         List<DetailedStatisticsItem> detailed = new ArrayList<>();
         List<Site> sitesList = sites.getSites();
         for (int i = 0; i < sitesList.size(); i++) {
             Site site = sitesList.get(i);
+            SiteModel siteModel = siteRepository.findByUrl(site.getUrl());
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());
             item.setUrl(site.getUrl());
-            int pages = pageRepository.getPagesCountPerSite(i + 1);
+            int pages = siteModel != null ? pageRepository.getPagesCountPerSite(siteModel.getId()) : 0;
             int lemmas = pages * random.nextInt(1_000);
             item.setPages(pages);
             item.setLemmas(lemmas);
-            item.setStatus(statuses[i % 3]);
-//                    (site != null
-//                            ? siteRepository.getReferenceById(i+1).getStatus().name()
-//                            : "INDEXED");
-            item.setError(errors[i % 3]);
-            item.setStatusTime(System.currentTimeMillis() -
-                    (random.nextInt(10_000)));
-//                    (site != null
-//                    ? siteRepository.getReferenceById(i+1).getStatusTime().getTime()
-//                    :  System.currentTimeMillis());
+            item.setStatus(siteModel != null ? siteModel.getStatus().name() : statuses[i % 3]);
+            item.setError(siteModel != null ? siteModel.getLastError() : errors[i % 3]);
+            item.setStatusTime(siteModel != null ? siteModel.getStatusTime().getTime() : System.currentTimeMillis());
             total.setPages(total.getPages() + pages);
             total.setLemmas(total.getLemmas() + lemmas);
             detailed.add(item);

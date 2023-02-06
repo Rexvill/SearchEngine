@@ -3,8 +3,6 @@ package searchengine.model;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 import java.util.ArrayList;
@@ -19,7 +17,6 @@ public class SiteModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-
     int id;
 
     @Enumerated(EnumType.STRING)
@@ -40,6 +37,5 @@ public class SiteModel {
 
     @Transient
     @OneToMany(cascade = CascadeType.ALL)
-    @OnDelete(action = OnDeleteAction.CASCADE)
     List<Page> pages = new ArrayList<>();
 }
