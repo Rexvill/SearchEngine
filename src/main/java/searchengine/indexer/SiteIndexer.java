@@ -1,4 +1,4 @@
-package searchengine.crawler;
+package searchengine.indexer;
 
 import lombok.SneakyThrows;
 import org.jsoup.Connection;
@@ -14,7 +14,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.RecursiveAction;
 
-public class WebCrawler2 extends RecursiveAction {
+public class SiteIndexer extends RecursiveAction {
 
     private final WebCrawlerService webCrawlerService;
 
@@ -22,7 +22,7 @@ public class WebCrawler2 extends RecursiveAction {
 
     private final SiteModel siteModel;
 
-    public WebCrawler2(URL link, SiteModel siteModel, WebCrawlerService webCrawlerService) throws MalformedURLException {
+    public SiteIndexer(URL link, SiteModel siteModel, WebCrawlerService webCrawlerService) throws MalformedURLException {
         rootUrl = link;
         this.webCrawlerService = webCrawlerService;
         this.siteModel = siteModel;
@@ -38,22 +38,22 @@ public class WebCrawler2 extends RecursiveAction {
             throw new RuntimeException(ex.getMessage() + "Поток " + Thread.currentThread().getName()
                     + " был неожиданно прерван во время ожидания");
         }
-        Node2 node = new Node2(rootUrl);
+        Node node = new Node(rootUrl);
         setNodeChildren(node);
-        List<WebCrawler2> taskList = new LinkedList<>();
+        List<SiteIndexer> taskList = new LinkedList<>();
         for (URL childUrl : node.getChildren()) {
             webCrawlerService.checkRunningAndStopCrawling(getPool());
-            WebCrawler2 task = new WebCrawler2(childUrl, siteModel, webCrawlerService);
+            SiteIndexer task = new SiteIndexer(childUrl, siteModel, webCrawlerService);
             task.fork();
             taskList.add(task);
             webCrawlerService.updateSiteStatusTime(siteModel);
         }
-        for (WebCrawler2 task : taskList) {
+        for (SiteIndexer task : taskList) {
             task.join();
         }
     }
 
-    private void setNodeChildren(Node2 node) throws IOException, InterruptedException {
+    private void setNodeChildren(Node node) throws IOException, InterruptedException {
         Connection.Response response = node.getResponse();
         Elements elements = response.parse().select("a[href]");
         String domain = rootUrl.getProtocol() + "://" + rootUrl.getHost();

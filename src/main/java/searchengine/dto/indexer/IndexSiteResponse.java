@@ -1,4 +1,4 @@
-package searchengine.dto.crawler;
+package searchengine.dto.indexer;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class CrawlerResponse {
+public class IndexSiteResponse {
 
     @JsonIgnore
     private final String[] errors = {

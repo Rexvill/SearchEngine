@@ -1,4 +1,4 @@
-package searchengine.crawler;
+package searchengine.indexer;
 
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -8,7 +8,7 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.Set;
 
-public class Node2 {
+public class Node {
 
     private final URL url;
 
@@ -16,7 +16,7 @@ public class Node2 {
 
     private final Connection.Response response;
 
-    public Node2(URL url) throws IOException {
+    public Node(URL url) throws IOException {
         this.url = url;
         response = Jsoup.newSession().url(url)
                 .ignoreContentType(true)
