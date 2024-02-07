@@ -8,9 +8,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
-import searchengine.crawler.Node2;
-import searchengine.crawler.WebCrawler2;
-import searchengine.dto.crawler.CrawlerResponse;
+import searchengine.dto.indexer.IndexPageResponse;
+import searchengine.dto.indexer.IndexSiteResponse;
+import searchengine.indexer.Node;
+import searchengine.indexer.SiteIndexer;
 import searchengine.model.Page;
 import searchengine.model.SiteModel;
 import searchengine.model.Status;
@@ -39,7 +40,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
 
     private ThreadPoolExecutor executor;
 
-    private CrawlerResponse response;
+    private IndexSiteResponse response;
 
     @Override
     public boolean isCrawlingUp() {
@@ -47,10 +48,10 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     @Override
-    public CrawlerResponse startSitesCrawling() {
+    public IndexSiteResponse startSitesCrawling() {
         clearTables();
         executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
-        response = new CrawlerResponse();
+        response = new IndexSiteResponse();
         if (!crawlingUp) {
             crawlingUp = true;
             for (Site site : sites.getSites()) {
@@ -76,8 +77,8 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     }
 
     @Override
-    public CrawlerResponse stopSitesCrawling() {
-        response = new CrawlerResponse();
+    public IndexSiteResponse stopSitesCrawling() {
+        response = new IndexSiteResponse();
         if (crawlingUp) {
             executor.shutdownNow();
             crawlingUp = false;
@@ -97,7 +98,6 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         pageRepository.truncateTableAndResetSequenceTable();
     }
 
-
     private void saveSiteModel(Site site, SiteModel siteModel) {
         siteModel.setUrl(site.getUrl());
         siteModel.setName(site.getName());
@@ -110,7 +110,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     private void siteCrawling(Site site, SiteModel siteModel) throws ExecutionException, InterruptedException, MalformedURLException {
         ForkJoinPool pool = new ForkJoinPool(4);
         URL rootUrl = new URL(site.getUrl());
-        WebCrawler2 crawler = new WebCrawler2(rootUrl, siteModel, this);
+        SiteIndexer crawler = new SiteIndexer(rootUrl, siteModel, this);
         Future<Void> future = pool.submit(crawler);
         while (!crawlingUp) {
             stop(pool);
@@ -166,7 +166,7 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
     @Transactional
     public boolean checkIfNotExistAndSavePage(URL link, SiteModel siteModel) throws IOException {
         boolean exist = true;
-        Node2 child = new Node2(link);
+        Node child = new Node(link);
         String path = child.getPath();
 
         Connection.Response response = child.getResponse();
@@ -208,5 +208,28 @@ public class WebCrawlerServiceImpl implements WebCrawlerService {
         return pageRepository.existsBySite_IdAndPathAllIgnoreCase(siteId, path);
     }
 
+    @Override
+    public IndexPageResponse indexPage(String url) {
+        /*TODO Метод добавляет в индекс или обновляет отдельную страницу, адрес которой передан в параметре. Если
+                адрес страницы передан неверно, метод должен вернуть соответствующую ошибку. */
+        
+        IndexPageResponse indexPageResponse = new IndexPageResponse();
+        
+        /*TODO
+           - найти в базе запись с этим УРЛ
+           -если запись есть - удалить, обойти этот урл ещё раз
+           - иначе (- проверить, что урл начинается с домена, присутствующего в базе
+                (ДА - записать в базу и проиндексировать;
+                НЕТ - выдать ошибку))
+         */
+        if (0 == 0) {
+            
+            indexPageResponse.setResult(true);
+        } else {
+            indexPageResponse.setResult(false);
+            indexPageResponse.setError(0);
+        }
+        return indexPageResponse;
+    }
 
 }

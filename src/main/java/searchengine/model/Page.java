@@ -1,12 +1,11 @@
 package searchengine.model;
 
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import javax.persistence.*;
-
-@Entity(name = "page")
+@Entity (name = "page")
 @NoArgsConstructor
 @Getter
 @Setter
@@ -20,7 +19,7 @@ public class Page {
     @JoinColumn(name= "site_id")
     SiteModel site;
 
-    @Column(columnDefinition = "TEXT NOT NULL, UNIQUE KEY site_path_Index (site_id, path(512))")
+    @Column(columnDefinition = "TEXT NOT NULL, UNIQUE KEY site_path_Index(site_id, path(512))")
     String path;
 
     @Column(columnDefinition = " INT NOT NULL")

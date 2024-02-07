@@ -27,7 +27,6 @@ public class Lemmatizer {
     public Lemmatizer() {
     }
 
-    /*TODO:метод, который будет очищать код веб-страниц от HTML-тегов.*/
     private String cleanupContent(String content) {
         return Jsoup.clean(content, Safelist.none());
     }

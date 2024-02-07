@@ -1,6 +1,7 @@
 package searchengine.services;
 
-import searchengine.dto.crawler.CrawlerResponse;
+import searchengine.dto.indexer.IndexPageResponse;
+import searchengine.dto.indexer.IndexSiteResponse;
 import searchengine.model.SiteModel;
 
 import java.io.IOException;
@@ -11,9 +12,11 @@ public interface WebCrawlerService {
 
     boolean isCrawlingUp();
 
-    CrawlerResponse startSitesCrawling() throws InterruptedException;
+    IndexSiteResponse startSitesCrawling() throws InterruptedException;
 
-    CrawlerResponse stopSitesCrawling();
+    IndexSiteResponse stopSitesCrawling();
+
+    IndexPageResponse indexPage(String url);
 
     void clearTables();
 

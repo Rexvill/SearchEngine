@@ -10,7 +10,7 @@ import searchengine.model.Page;
 
 public interface PageRepository extends JpaRepository<Page, Integer> {
 
-    @Query(value = "SELECT COUNT(path) FROM page  WHERE site_id = :siteId")
+    @Query(value = "SELECT COUNT(path) FROM page  WHERE site_id = :siteId", nativeQuery = true)
     int getPagesCountPerSite(@Param(value = "siteId")int siteId);
 
 
@@ -29,7 +29,9 @@ public interface PageRepository extends JpaRepository<Page, Integer> {
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE hibernate_sequence SET next_val = 1", nativeQuery = true)
+    @Query(value = "UPDATE page_seq SET next_val = 1", nativeQuery = true)
     void resetSequenceTable();
+
+//    boolean findByUrl(String url);
 
 }

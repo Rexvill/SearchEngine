@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import searchengine.dto.crawler.CrawlerResponse;
-import searchengine.dto.crawler.IndexPageResponse;
+import searchengine.dto.indexer.IndexPageResponse;
+import searchengine.dto.indexer.IndexSiteResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.StatisticsService;
 import searchengine.services.WebCrawlerService;
@@ -21,22 +21,18 @@ public class ApiController {
 
     private final WebCrawlerService webCrawlerService;
 
-//    public ApiController(StatisticsService statisticsService) {
-//        this.statisticsService = statisticsService;
-//    }
-
     @GetMapping("/statistics")
     public ResponseEntity<StatisticsResponse> statistics() {
         return ResponseEntity.ok(statisticsService.getStatistics());
     }
 
     @GetMapping("/startIndexing")
-    public ResponseEntity<CrawlerResponse> startIndexing() throws InterruptedException {
+    public ResponseEntity<IndexSiteResponse> startIndexing() throws InterruptedException {
         return ResponseEntity.ok(webCrawlerService.startSitesCrawling());
     }
 
     @GetMapping("/stopIndexing")
-    public ResponseEntity<CrawlerResponse> stopIndexing() {
+    public ResponseEntity<IndexSiteResponse> stopIndexing() {
         return ResponseEntity.ok(webCrawlerService.stopSitesCrawling());
     }
 

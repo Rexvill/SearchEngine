@@ -20,7 +20,7 @@ import java.util.Random;
 @RequiredArgsConstructor
 public class StatisticsServiceImpl implements StatisticsService {
 
-    private final Random random = new Random();
+    private final Random random = new Random();// random is temporary stub for webinterface
 
     private final WebCrawlerService webCrawlerService;
 
